@@ -85,8 +85,11 @@ node scripts/gutenberg-para-md.mjs entrada.txt web/livros/saida.md "Título" "Au
 npm run publicar
 ```
 
-Copia `web/` para `docs/`, grava o `CNAME` do domínio e o `.nojekyll`. Depois é `git push`; o Pages
-serve a pasta `docs/` do branch principal.
+Copia `web/` para `docs/`, grava o `CNAME` do domínio e o `.nojekyll`. Depois é `git push`.
+
+No GitHub, em **Settings → Pages → Build and deployment**, a origem precisa ser
+`Deploy from a branch`, branch `main`, **pasta `/docs`** — e não `/ (root)`. Com a raiz selecionada,
+o Pages publica o README como se fosse o site e o app fica escondido em `/docs/`.
 
 No DNS, `livros` precisa de um `CNAME` para `erospgomes.github.io`. O certificado HTTPS sai sozinho
 depois que o DNS propaga — e o HTTPS é obrigatório, porque sem ele o app não instala como PWA.
