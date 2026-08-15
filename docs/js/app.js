@@ -159,6 +159,15 @@ function desenharEstante() {
     caixa.append(botao);
   }
 
+  // Sem sessão, a estante mostra só o que é público — o convite é o que explica a diferença.
+  const faltaEntrar = nuvem.configurada() && !nuvem.conectada();
+  $("convite").hidden = !faltaEntrar;
+  if (faltaEntrar) {
+    $("conviteTexto").textContent = livros.length > 0
+      ? "A estante completa fica guardada fora do aparelho. Entre para vê-la e sincronizar o progresso entre o celular e o computador."
+      : "Entre para ver a sua estante e sincronizar o progresso entre o celular e o computador.";
+  }
+
   const emLeitura = livros
     .filter((l) => l.abertoEm && !l.terminadoEm && l.posicao > 0)
     .sort((a, b) => new Date(b.abertoEm) - new Date(a.abertoEm))[0];
@@ -642,6 +651,8 @@ async function confirmarAcesso(evento) {
     await iniciarEstante();
     desenharNuvem();
     desenharProgresso();
+    irPara("estante");
+    avisar("Estante liberada.");
   } catch (erro) {
     $("acessoErro").textContent = erro.message;
   } finally {
@@ -834,6 +845,7 @@ function ligarInterface() {
   });
 
   $("nuvemEntrar").addEventListener("click", abrirAcesso);
+  $("conviteEntrar").addEventListener("click", abrirAcesso);
   $("fecharAcesso").addEventListener("click", () => fecharFolha("folhaAcesso"));
   $("formAcesso").addEventListener("submit", confirmarAcesso);
   $("nuvemSincronizar").addEventListener("click", async () => {

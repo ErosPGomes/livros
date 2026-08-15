@@ -220,6 +220,20 @@ code { font-family: var(--fonte-numero); font-size: .88em; color: var(--papel-fo
 }
 .cartao-retomar__barra span { display: block; height: 100%; background: var(--brasa); }
 
+/* O convite fica na estante, e não só no painel de treino: é aqui que a falta dos livros aparece,
+   então é aqui que a saída precisa estar. */
+.convite {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--brasa) 12%, var(--tinta-2)), var(--tinta-2));
+  border: 1px solid color-mix(in srgb, var(--brasa) 34%, var(--borda));
+  border-radius: var(--raio);
+}
+.convite__titulo { font-size: 16px; font-weight: 700; }
+.convite__texto { font-size: 13.5px; line-height: 1.55; color: var(--papel-fosco); margin-top: 4px; }
+.convite .botao { justify-self: start; }
+
 .estante { display: grid; gap: 12px; }
 
 .livro {
