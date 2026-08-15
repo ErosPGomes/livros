@@ -1,0 +1,13 @@
+{
+  "atualizadoEm": "2026-08-14",
+  "livros": [
+    {
+      "id": "dom-casmurro",
+      "titulo": "Dom Casmurro",
+      "autor": "Machado de Assis",
+      "arquivo": "dom-casmurro.md",
+      "ano": 1899,
+      "dominioPublico": true
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+# O repositório guarda tudo em LF; o Windows continua trabalhando com CRLF localmente.
+* text=auto eol=lf
+
+*.png binary

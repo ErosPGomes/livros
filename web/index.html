@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="escuro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gabinete — leitura dinâmica</title>
+<meta name="description" content="Leitor dinâmico com plano de treino, retenção e ofensiva.">
+<meta name="theme-color" content="#0C0D11">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/icone-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./estilo.css">
+</head>
+<body>
+
+<div class="app" id="app" data-tela="estante">
+
+  <!-- ============================================================ ESTANTE -->
+  <section class="tela tela--estante" data-nome="estante">
+    <header class="cabecalho">
+      <p class="sobrescrito">Gabinete</p>
+      <h1>Sua estante</h1>
+    </header>
+
+    <div class="retomar" id="retomar" hidden>
+      <p class="rotulo">Continuar de onde parou</p>
+      <button class="cartao-retomar" id="botaoRetomar" type="button">
+        <span class="cartao-retomar__titulo" id="retomarTitulo"></span>
+        <span class="cartao-retomar__detalhe" id="retomarDetalhe"></span>
+        <span class="cartao-retomar__barra"><span id="retomarBarra"></span></span>
+      </button>
+    </div>
+
+    <div class="estante" id="estante"></div>
+    <p class="vazio" id="estanteVazia" hidden>Nenhum livro no repositório ainda.</p>
+
+    <p class="nota">
+      Os livros entram por <code>git push</code> na pasta <code>livros/</code>. Nada é enviado para
+      fora: a leitura e o progresso ficam neste aparelho.
+    </p>
+  </section>
+
+  <!-- ============================================================ LEITOR -->
+  <section class="tela tela--leitor" data-nome="leitor">
+    <header class="leitor__topo">
+      <button class="icone" id="voltarParaEstante" type="button" aria-label="Voltar para a estante">‹</button>
+      <div class="leitor__titulo">
+        <span id="leitorTitulo">Nenhum livro aberto</span>
+        <span class="leitor__capitulo" id="leitorCapitulo"></span>
+      </div>
+      <button class="icone" id="abrirAjustes" type="button" aria-label="Ajustes de leitura">≡</button>
+    </header>
+
+    <div class="palco" id="palco" role="button" tabindex="0" aria-label="Toque para iniciar ou pausar">
+      <div class="palco__vazio" id="palcoVazio">
+        <p class="palco__vazio-titulo">Nenhum livro aberto</p>
+        <p class="palco__vazio-texto">Escolha um livro na estante para começar.</p>
+        <button class="botao botao--principal" id="irParaEstante" type="button">Abrir a estante</button>
+      </div>
+
+      <div class="palavra" id="palavra" hidden>
+        <span class="palavra__esq" id="palavraEsq"></span><span class="palavra__foco" id="palavraFoco"></span><span class="palavra__dir" id="palavraDir"></span>
+      </div>
+
+      <p class="contexto" id="contexto"></p>
+      <div class="contagem" id="contagem" hidden></div>
+    </div>
+
+    <div class="leitor__medidores">
+      <span class="medidor" id="medidorPosicao">0 / 0</span>
+      <span class="medidor medidor--ppm" id="medidorPpm">300 ppm</span>
+      <span class="medidor" id="medidorTempo">--:--</span>
+    </div>
+
+    <div class="leitor__controles">
+      <button class="botao botao--secundario" id="botaoFrase" type="button" aria-label="Voltar uma frase">◀ frase</button>
+      <button class="botao botao--principal botao--tocar" id="botaoTocar" type="button">Iniciar</button>
+      <button class="botao botao--secundario" id="botaoCapitulo" type="button" aria-label="Próximo capítulo">trecho ▶</button>
+    </div>
+
+    <div class="leitor__acoes">
+      <button class="elo" id="botaoTextoNormal" type="button">Modo texto</button>
+      <button class="elo" id="botaoEncerrar" type="button">Encerrar e testar</button>
+    </div>
+
+    <div class="progresso-fino"><span id="progressoFino"></span></div>
+  </section>
+
+  <!-- ============================================================ TEXTO NORMAL -->
+  <section class="tela tela--texto" data-nome="texto">
+    <header class="leitor__topo">
+      <button class="icone" id="fecharTexto" type="button" aria-label="Voltar ao leitor">‹</button>
+      <div class="leitor__titulo"><span id="textoTitulo"></span></div>
+      <button class="icone" id="abrirCapitulos" type="button" aria-label="Capítulos">☰</button>
+    </header>
+
+    <div class="texto-corrido" id="textoCorrido"></div>
+
+    <div class="barra-flutuante">
+      <button class="botao botao--principal" id="focarAqui" type="button">Começar o foco aqui</button>
+    </div>
+  </section>
+
+  <!-- ============================================================ PROGRESSO -->
+  <section class="tela tela--progresso" data-nome="progresso">
+    <header class="cabecalho">
+      <p class="sobrescrito">Treino</p>
+      <h1>Seu progresso</h1>
+    </header>
+
+    <div class="painel-hoje">
+      <div class="anel" id="anel">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="anel__trilho" cx="50" cy="50" r="43"></circle>
+          <circle class="anel__preenchido" id="anelPreenchido" cx="50" cy="50" r="43"></circle>
+        </svg>
+        <div class="anel__centro">
+          <strong id="anelMinutos">0</strong>
+          <span id="anelMeta">de 15 min</span>
+        </div>
+      </div>
+
+      <div class="ofensiva">
+        <p class="ofensiva__numero"><span id="ofensivaDias">0</span><em>dias</em></p>
+        <p class="ofensiva__rotulo">de ofensiva</p>
+        <p class="ofensiva__detalhe" id="ofensivaDetalhe">Comece hoje</p>
+      </div>
+    </div>
+
+    <p class="incentivo" id="incentivo"></p>
+
+    <div class="numeros">
+      <div class="numero"><strong id="numPpm">—</strong><span>ppm médio</span></div>
+      <div class="numero"><strong id="numRetencao">—</strong><span>retenção</span></div>
+      <div class="numero"><strong id="numRecorde">—</strong><span>recorde</span></div>
+      <div class="numero"><strong id="numLivros">—</strong><span>livros/ano</span></div>
+    </div>
+
+    <section class="bloco">
+      <div class="bloco__topo">
+        <h2>Plano de 14 dias</h2>
+        <span class="rotulo" id="planoContagem">0 de 14</span>
+      </div>
+      <p class="bloco__nota" id="planoResumo"></p>
+      <ol class="trilha" id="trilha"></ol>
+    </section>
+
+    <section class="bloco">
+      <div class="bloco__topo"><h2>Conquistas</h2></div>
+      <div class="conquistas" id="conquistas"></div>
+    </section>
+
+    <section class="bloco" id="blocoNuvem" hidden>
+      <div class="bloco__topo">
+        <h2>Sincronização</h2>
+        <span class="rotulo" id="nuvemEstado">desligada</span>
+      </div>
+      <p class="bloco__nota" id="nuvemNota">
+        Entrar guarda o progresso fora do aparelho e libera os livros que não estão no repositório.
+      </p>
+      <div class="linha-botoes">
+        <button class="botao botao--principal" id="nuvemEntrar" type="button">Entrar</button>
+        <button class="botao botao--secundario" id="nuvemSincronizar" type="button" hidden>Sincronizar agora</button>
+        <button class="botao botao--secundario" id="nuvemSair" type="button" hidden>Sair</button>
+      </div>
+    </section>
+
+    <section class="bloco">
+      <div class="bloco__topo"><h2>Metas</h2></div>
+      <div class="campos">
+        <label>Minutos por dia<input type="number" id="metaMinutos" min="5" max="240" inputmode="numeric"></label>
+        <label>PPM que você quer alcançar<input type="number" id="metaPpm" min="150" max="1200" inputmode="numeric"></label>
+      </div>
+      <button class="botao botao--principal" id="salvarMetas" type="button">Salvar metas</button>
+    </section>
+
+    <section class="bloco">
+      <div class="bloco__topo"><h2>Últimas sessões</h2></div>
+      <ul class="sessoes" id="sessoes"></ul>
+      <p class="vazio" id="sessoesVazio">Nenhuma sessão registrada ainda.</p>
+    </section>
+  </section>
+
+  <!-- ============================================================ ABAS -->
+  <nav class="abas" id="abas">
+    <button type="button" data-ir="leitor"><span>◉</span>Ler</button>
+    <button type="button" data-ir="estante"><span>▤</span>Estante</button>
+    <button type="button" data-ir="progresso"><span>◈</span>Progresso</button>
+  </nav>
+</div>
+
+<!-- ============================================================ QUIZ -->
+<div class="folha folha--quiz" id="folhaQuiz" hidden>
+  <div class="folha__conteudo">
+    <p class="rotulo" id="quizContador">Pergunta 1 de 4</p>
+    <p class="quiz__frase" id="quizFrase"></p>
+    <div class="quiz__opcoes" id="quizOpcoes"></div>
+    <p class="quiz__retorno" id="quizRetorno"></p>
+    <button class="botao botao--principal" id="quizAvancar" type="button">Responder</button>
+  </div>
+</div>
+
+<!-- ============================================================ RESULTADO -->
+<div class="folha folha--resultado" id="folhaResultado" hidden>
+  <div class="folha__conteudo folha__conteudo--centro">
+    <p class="resultado__marca" id="resultadoMarca">◉</p>
+    <h2 id="resultadoTitulo"></h2>
+    <p class="resultado__linha" id="resultadoLinha"></p>
+    <p class="resultado__veredito" id="resultadoVeredito"></p>
+    <button class="botao botao--principal" id="fecharResultado" type="button">Continuar</button>
+  </div>
+</div>
+
+<!-- ============================================================ AJUSTES -->
+<div class="folha folha--ajustes" id="folhaAjustes" hidden>
+  <div class="folha__conteudo">
+    <div class="folha__topo">
+      <h2>Ajustes de leitura</h2>
+      <button class="icone" id="fecharAjustes" type="button" aria-label="Fechar">×</button>
+    </div>
+
+    <label class="ajuste ajuste--faixa">
+      <span class="ajuste__titulo">Velocidade <strong id="valorPpm">300 ppm</strong></span>
+      <input type="range" id="faixaPpm" min="100" max="1200" step="10" value="300">
+    </label>
+
+    <div class="ajuste">
+      <span class="ajuste__titulo">Palavras por bloco</span>
+      <p class="ajuste__nota">Acima de 500 ppm, ler duas ou três de uma vez é o que permite continuar subindo.</p>
+      <div class="segmentado" id="segBlocos" data-valor="1">
+        <button type="button" data-valor="1">1</button>
+        <button type="button" data-valor="2">2</button>
+        <button type="button" data-valor="3">3</button>
+      </div>
+    </div>
+
+    <label class="ajuste ajuste--chave">
+      <span>
+        <span class="ajuste__titulo">Push Mode</span>
+        <span class="ajuste__nota">Acelera sozinho durante a sessão</span>
+      </span>
+      <input type="checkbox" id="chavePush">
+    </label>
+
+    <label class="ajuste ajuste--chave">
+      <span>
+        <span class="ajuste__titulo">Emendar capítulos</span>
+        <span class="ajuste__nota">Segue direto para o próximo trecho</span>
+      </span>
+      <input type="checkbox" id="chaveCapitulo" checked>
+    </label>
+
+    <label class="ajuste ajuste--chave">
+      <span>
+        <span class="ajuste__titulo">Recuar ao retomar</span>
+        <span class="ajuste__nota">Volta algumas palavras depois da pausa</span>
+      </span>
+      <input type="checkbox" id="chaveRegressao" checked>
+    </label>
+
+    <div class="ajuste">
+      <span class="ajuste__titulo">Tipografia</span>
+      <div class="segmentado" id="segFonte" data-valor="serifada">
+        <button type="button" data-valor="serifada">Serifada</button>
+        <button type="button" data-valor="sem-serifa">Sem serifa</button>
+      </div>
+    </div>
+
+    <div class="ajuste">
+      <span class="ajuste__titulo">Tamanho</span>
+      <div class="segmentado" id="segTamanho" data-valor="3">
+        <button type="button" data-valor="1">A</button>
+        <button type="button" data-valor="2">A</button>
+        <button type="button" data-valor="3">A</button>
+        <button type="button" data-valor="4">A</button>
+        <button type="button" data-valor="5">A</button>
+      </div>
+    </div>
+
+    <div class="ajuste">
+      <span class="ajuste__titulo">Tema</span>
+      <div class="segmentado" id="segTema" data-valor="escuro">
+        <button type="button" data-valor="escuro">Tinta</button>
+        <button type="button" data-valor="papel">Papel</button>
+      </div>
+    </div>
+
+    <div class="ajuste">
+      <span class="ajuste__titulo">Som de fundo</span>
+      <p class="ajuste__nota">Fundo contínuo e sem letra atrapalha a voz interna, que é o que trava a leitura perto de 150 ppm.</p>
+      <div class="segmentado segmentado--som" id="segSom" data-valor="nenhum"></div>
+      <input type="range" id="faixaVolume" min="0" max="100" step="5" value="25" aria-label="Volume">
+    </div>
+
+    <div class="ajuste">
+      <span class="ajuste__titulo">Teste de velocidade</span>
+      <p class="ajuste__nota">Mede seu ritmo natural e remonta o plano de 14 dias.</p>
+      <button class="botao botao--secundario" id="botaoTeste" type="button">Fazer o teste</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ CAPÍTULOS -->
+<div class="folha folha--capitulos" id="folhaCapitulos" hidden>
+  <div class="folha__conteudo">
+    <div class="folha__topo">
+      <h2>Capítulos</h2>
+      <button class="icone" id="fecharCapitulos" type="button" aria-label="Fechar">×</button>
+    </div>
+    <ol class="capitulos" id="listaCapitulos"></ol>
+  </div>
+</div>
+
+<!-- ============================================================ ACESSO -->
+<div class="folha folha--acesso" id="folhaAcesso" hidden>
+  <form class="folha__conteudo" id="formAcesso" autocomplete="on">
+    <div class="folha__topo">
+      <h2 id="acessoTitulo">Entrar</h2>
+      <button class="icone" id="fecharAcesso" type="button" aria-label="Fechar">×</button>
+    </div>
+
+    <p class="ajuste__nota" id="acessoNota">
+      A senha protege o seu progresso e os livros guardados na nuvem. Ela nunca é enviada em texto:
+      o servidor guarda apenas o resumo criptográfico.
+    </p>
+
+    <!-- O campo de usuário existe só para o gerenciador de senhas ter o que salvar. -->
+    <input type="text" name="username" value="gabinete" autocomplete="username" hidden readonly>
+
+    <label class="ajuste">
+      <span class="ajuste__titulo">Senha</span>
+      <input type="password" id="acessoSenha" name="password" autocomplete="current-password"
+             minlength="8" required placeholder="pelo menos 8 caracteres">
+    </label>
+
+    <p class="quiz__retorno" id="acessoErro"></p>
+    <button class="botao botao--principal" id="acessoConfirmar" type="submit">Entrar</button>
+  </form>
+</div>
+
+<div class="aviso" id="aviso" hidden></div>
+
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

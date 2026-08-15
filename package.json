@@ -1,0 +1,12 @@
+{
+  "name": "gabinete",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Leitor dinâmico (RSVP) com plano de treino, teste de retenção e ofensiva diária.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/servidor.mjs 4173",
+    "publicar": "node scripts/publicar.mjs",
+    "icones": "powershell -ExecutionPolicy Bypass -File scripts/gerar-icones.ps1"
+  }
+}
