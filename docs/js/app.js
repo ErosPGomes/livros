@@ -73,11 +73,15 @@ const leitor = new Leitor({
     $("palco").dataset.tocando = String(tocando);
     $("botaoTocar").textContent = tocando ? "Pausar" : "Iniciar";
     if (tocando) ambiente.tocar();
+    // Pausar devolve os controles na hora; ler os esconde depois de alguns segundos.
+    if (tocando) adiarImersao();
+    else sairDaImersao();
     atualizarMedidores();
   },
   onVelocidade: (ppm) => { $("medidorPpm").textContent = `${ppm} ppm`; },
   onFim: aoTerminarOTexto,
   onCapitulo: () => avisar("Fim do trecho. Toque em iniciar para seguir."),
+  onUltimoTrecho: () => avisar("Este já é o último trecho do livro."),
   onContagem: (n) => {
     const alvo = $("contagem");
     if (n <= 0) { alvo.hidden = true; return; }
@@ -205,10 +209,11 @@ async function abrirLivro(livro) {
     leitor.definirPpm(ppmSugerido(perfil));
     $("faixaPpm").value = String(leitor.ppmBase);
     $("valorPpm").textContent = `${leitor.ppmBase} ppm`;
-    const posicaoInicial = registro.posicao > 0
+    const comeco = inicioDoMiolo(documento);
+    leitor.definirInicioDoLivro(comeco);
+    leitor.carregar(documento, registro.posicao > 0
       ? Math.min(registro.posicao, documento.total - 1)
-      : inicioDoMiolo(documento);
-    leitor.carregar(documento, posicaoInicial);
+      : comeco);
 
     $("palavra").hidden = false;
     $("palcoVazio").hidden = true;
@@ -513,7 +518,9 @@ function desenharCapitulos() {
     botao.addEventListener("click", () => {
       leitor.irPara(capitulo.inicio);
       fecharFolha("folhaCapitulos");
-      abrirTextoNormal();
+      // Escolher um capítulo não deve arrastar você para outra tela: cada uma continua onde estava.
+      if (app.dataset.tela === "texto") abrirTextoNormal();
+      else atualizarMedidores();
     });
     item.append(botao);
     lista.append(item);
@@ -595,6 +602,42 @@ function desenharProgresso() {
     item.querySelector("b").textContent = `${ppmEfetivo(sessao)} ppm`;
     lista.append(item);
   }
+}
+
+// ================================================================ imersão
+
+const SEGUNDOS_ATE_SUMIR = 4500;
+let relogioDaImersao = null;
+
+function adiarImersao() {
+  clearTimeout(relogioDaImersao);
+  document.querySelector(".tela--leitor").dataset.imersivo = "false";
+  if (!perfil.ajustes.imersivo || !leitor.tocando) return;
+  relogioDaImersao = setTimeout(() => {
+    if (leitor.tocando) document.querySelector(".tela--leitor").dataset.imersivo = "true";
+  }, SEGUNDOS_ATE_SUMIR);
+}
+
+function sairDaImersao() {
+  clearTimeout(relogioDaImersao);
+  document.querySelector(".tela--leitor").dataset.imersivo = "false";
+}
+
+/**
+ * Tela cheia de verdade, que some com a barra do navegador. Precisa sair de um toque do usuário —
+ * por isso é chamada do próprio manipulador do botão, e não de dentro do leitor.
+ */
+async function pedirTelaCheia() {
+  if (!perfil.ajustes.telaCheia || document.fullscreenElement) return;
+  try {
+    await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+  } catch {
+    // iPhone fora do modo aplicativo não deixa; instalado na tela inicial já abre sem barra.
+  }
+}
+
+function sairDaTelaCheia() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
 // ================================================================ nuvem
@@ -708,6 +751,8 @@ function aplicarAjustes() {
   $("chavePush").checked = a.pushMode;
   $("chaveCapitulo").checked = a.autoCapitulo;
   $("chaveRegressao").checked = a.regressaoAoRetomar;
+  $("chaveTelaCheia").checked = a.telaCheia;
+  $("chaveImersivo").checked = a.imersivo;
   $("faixaVolume").value = String(Math.round(a.volume * 100));
   marcarSegmento("segBlocos", String(a.blocos));
   marcarSegmento("segFonte", a.fonte);
@@ -766,7 +811,14 @@ function ligarGestos() {
     const dy = evento.clientY - inicioY;
     const duracao = performance.now() - tempo;
 
-    if (Math.abs(dx) < 34 && Math.abs(dy) < 34 && duracao < 500) { leitor.alternar(); return; }
+    if (Math.abs(dx) < 34 && Math.abs(dy) < 34 && duracao < 500) {
+      pedirTelaCheia();
+      leitor.alternar();
+      return;
+    }
+
+    // Qualquer gesto traz os controles de volta e reinicia a contagem para sumirem.
+    adiarImersao();
 
     if (Math.abs(dx) > Math.abs(dy)) {
       if (dx > 40) leitor.voltarFrase();
@@ -815,7 +867,18 @@ function ligarInterface() {
 
   $("irParaEstante").addEventListener("click", () => irPara("estante"));
   $("voltarParaEstante").addEventListener("click", () => irPara("estante"));
-  $("botaoTocar").addEventListener("click", () => leitor.alternar());
+  $("botaoTocar").addEventListener("click", () => { pedirTelaCheia(); leitor.alternar(); });
+  $("botaoInicio").addEventListener("click", () => {
+    leitor.irParaOInicio();
+    atualizarMedidores();
+    avisar("Voltou ao início do livro.");
+  });
+  $("capitulosDoLeitor").addEventListener("click", desenharCapitulos);
+  $("irParaInicioDoLivro").addEventListener("click", () => {
+    leitor.irParaOInicio();
+    fecharFolha("folhaCapitulos");
+    atualizarMedidores();
+  });
   $("botaoFrase").addEventListener("click", () => { leitor.voltarFrase(); atualizarMedidores(); });
   $("botaoCapitulo").addEventListener("click", () => { leitor.pularCapitulo(); atualizarMedidores(); });
   $("botaoTextoNormal").addEventListener("click", abrirTextoNormal);
@@ -888,6 +951,17 @@ function ligarInterface() {
   $("chaveRegressao").addEventListener("change", (e) => {
     perfil.ajustes.regressaoAoRetomar = e.target.checked;
     leitor.definirRegressao(e.target.checked);
+    salvarPerfil(perfil);
+  });
+  $("chaveTelaCheia").addEventListener("change", (e) => {
+    perfil.ajustes.telaCheia = e.target.checked;
+    if (!e.target.checked) sairDaTelaCheia();
+    salvarPerfil(perfil);
+  });
+  $("chaveImersivo").addEventListener("change", (e) => {
+    perfil.ajustes.imersivo = e.target.checked;
+    if (e.target.checked) adiarImersao();
+    else sairDaImersao();
     salvarPerfil(perfil);
   });
 

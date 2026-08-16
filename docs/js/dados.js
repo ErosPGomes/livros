@@ -19,6 +19,8 @@ export const AJUSTES_PADRAO = {
   som: "nenhum",
   volume: 0.25,
   regressaoAoRetomar: true,
+  telaCheia: true,
+  imersivo: true,
 };
 
 export function perfilVazio() {

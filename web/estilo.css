@@ -392,7 +392,30 @@ code { font-family: var(--fonte-numero); font-size: .88em; color: var(--papel-fo
 .botao--tocar { padding: 16px; font-size: 16px; }
 .leitor__acoes { display: flex; justify-content: space-between; }
 
+/* Modo imersivo: alguns segundos depois que a leitura começa, tudo que não é a palavra desaparece.
+   Nada some de verdade — os controles continuam no lugar e voltam à primeira pausa ou toque, para
+   a mão não precisar procurar onde o botão foi parar. */
+.tela--leitor[data-imersivo="true"] .leitor__topo,
+.tela--leitor[data-imersivo="true"] .leitor__medidores,
+.tela--leitor[data-imersivo="true"] .leitor__controles,
+.tela--leitor[data-imersivo="true"] .leitor__acoes {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 900ms ease;
+}
+
+.tela--leitor[data-imersivo="true"] .palco {
+  border-color: transparent;
+  transition: border-color 900ms ease;
+}
+
+.leitor__topo,
+.leitor__medidores,
+.leitor__controles,
+.leitor__acoes { transition: opacity 220ms ease; }
+
 .progresso-fino { height: 3px; border-radius: 2px; background: var(--borda); overflow: hidden; }
+.tela--leitor[data-imersivo="true"] .progresso-fino { opacity: .35; }
 .progresso-fino span { display: block; height: 100%; width: 0; background: var(--brasa); transition: width 200ms linear; }
 
 /* ---------------------------------------------------------------- texto normal */

@@ -8,6 +8,12 @@
 export const PPM_MINIMO = 100;
 export const PPM_MAXIMO = 1200;
 
+/** Abaixo disso um trecho é capa, ficha ou nota — não é capítulo. */
+const PALAVRAS_DE_UM_CAPITULO = 120;
+
+/** Linha só com número ou algarismo romano: número de página que sobrou do PDF. */
+const NUMERO_DE_PAGINA = /^\s*(\d{1,4}|[ivxlcdm]{1,7}|[IVXLCDM]{1,7})\s*$/;
+
 const LETRA_OU_NUMERO = /[\p{L}\p{N}]/u;
 
 const CERCA_DE_CODIGO = /^\s*(```|~~~)/;
@@ -249,9 +255,24 @@ export function inicioDaFraseAnterior(documento, posicao) {
   return i;
 }
 
+/**
+ * Começo do próximo trecho, ou null quando já se está no último. Devolver o fim do arquivo, como
+ * antes, jogava o leitor para a última palavra do livro — e a volta só existia frase a frase.
+ */
 export function proximoCapitulo(documento, posicao) {
-  const proximo = documento.capitulos.find((c) => c.inicio > posicao);
-  return proximo ? proximo.inicio : Math.max(documento.total - 1, 0);
+  return documento.capitulos.find((c) => c.inicio > posicao)?.inicio ?? null;
+}
+
+/** Começo do trecho atual; se já se está nele, o do trecho anterior. */
+export function capituloAnterior(documento, posicao) {
+  const atual = capituloEm(documento, posicao);
+  if (!atual) return 0;
+
+  // Alguns segundos dentro do trecho: "voltar" quer dizer o começo dele, não o anterior.
+  if (posicao > atual.inicio + 12) return atual.inicio;
+
+  const anterior = documento.capitulos[atual.indice - 1];
+  return anterior ? anterior.inicio : 0;
 }
 
 /**
@@ -263,11 +284,21 @@ export function proximoCapitulo(documento, posicao) {
  * mobília é pequena perto do livro, para nunca pular conteúdo de verdade.
  */
 export function inicioDoMiolo(documento) {
-  const primeiro = documento.capitulos.find((c) => c.nivel >= 2);
-  if (!primeiro) return 0;
+  const limite = Math.max(documento.total, 1) * 0.08;
+  let destino = 0;
 
-  const proporcao = primeiro.inicio / Math.max(documento.total, 1);
-  return proporcao <= 0.03 ? primeiro.inicio : 0;
+  // O que decide não é o nível do título — muitos livros marcam a capa e o capítulo 1 com o mesmo
+  // "#" — e sim o tamanho do trecho: capa, ficha catalográfica e nota da editora são blocos curtos.
+  // Enquanto os trechos de abertura forem curtos, o começo anda; ao chegar em prosa de verdade,
+  // para. O teto de 8% garante que nenhum conteúdo real seja pulado.
+  for (const capitulo of documento.capitulos) {
+    if (capitulo.palavras >= PALAVRAS_DE_UM_CAPITULO) break;
+    const proximo = capitulo.inicio + capitulo.palavras;
+    if (proximo > limite) break;
+    destino = proximo;
+  }
+
+  return destino;
 }
 
 export function capituloEm(documento, posicao) {
@@ -340,6 +371,11 @@ function limparEmBlocos(conteudo) {
       continue;
     }
 
+    // Número de página solto entre parágrafos: mobília do PDF, nunca leitura.
+    if (paragrafo.length === 0 && NUMERO_DE_PAGINA.test(linha) && ehLinhaIsolada(linhas, i)) {
+      continue;
+    }
+
     const titulo = TITULO.exec(linha);
     if (titulo) {
       fechar();
@@ -365,6 +401,13 @@ function limparEmBlocos(conteudo) {
 
   fechar();
   return blocos;
+}
+
+/** Uma linha cercada de vazio de cada lado. Um "12" no meio de um parágrafo continua sendo número. */
+function ehLinhaIsolada(linhas, i) {
+  const anterior = (linhas[i - 1] ?? "").trim();
+  const proxima = (linhas[i + 1] ?? "").trim();
+  return anterior === "" && (proxima === "" || i + 1 >= linhas.length);
 }
 
 function normalizar(valor) {

@@ -6,6 +6,7 @@ import {
   duracaoDe,
   inicioDaFraseAnterior,
   proximoCapitulo,
+  capituloAnterior,
   PPM_MINIMO,
   PPM_MAXIMO,
 } from "./texto.js";
@@ -20,6 +21,7 @@ export class Leitor {
   #documento = null;
   #blocos = [];
   #posicao = 0;
+  #inicioDoLivro = 0;
   #tamanhoDoBloco = 1;
   #ppm = 300;
   #ppmBase = 300;
@@ -107,7 +109,23 @@ export class Leitor {
 
   pularCapitulo() {
     if (!this.#documento) return;
-    this.irPara(proximoCapitulo(this.#documento, this.#posicao));
+    const destino = proximoCapitulo(this.#documento, this.#posicao);
+    if (destino === null) { this.eventos.onUltimoTrecho?.(); return; }
+    this.irPara(destino);
+  }
+
+  voltarCapitulo() {
+    if (!this.#documento) return;
+    this.irPara(capituloAnterior(this.#documento, this.#posicao));
+  }
+
+  irParaOInicio() {
+    if (!this.#documento) return;
+    this.irPara(this.#inicioDoLivro);
+  }
+
+  definirInicioDoLivro(posicao) {
+    this.#inicioDoLivro = Math.max(posicao, 0);
   }
 
   alternar() {
