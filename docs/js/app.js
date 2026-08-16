@@ -209,7 +209,8 @@ async function abrirLivro(livro) {
     leitor.definirPpm(ppmSugerido(perfil));
     $("faixaPpm").value = String(leitor.ppmBase);
     $("valorPpm").textContent = `${leitor.ppmBase} ppm`;
-    const comeco = inicioDoMiolo(documento);
+    // A marcação manual sempre ganha da heurística: ela é a correção de quem leu o livro.
+    const comeco = registro.inicioManual ?? inicioDoMiolo(documento);
     leitor.definirInicioDoLivro(comeco);
     leitor.carregar(documento, registro.posicao > 0
       ? Math.min(registro.posicao, documento.total - 1)
@@ -248,8 +249,15 @@ function atualizarMedidores() {
   const minutos = minutosRestantes(documento, posicao, leitor.ppm);
   $("medidorTempo").textContent = minutos < 1 ? "menos de 1 min" : `${Math.round(minutos)} min restantes`;
 
+  // Livro sem títulos vira um trecho só com o nome do próprio livro: repetir o título embaixo dele
+  // não informa nada, então nesse caso a linha mostra onde a leitura está.
   const capitulo = capituloEm(documento, posicao);
-  $("leitorCapitulo").textContent = capitulo ? capitulo.titulo : "";
+  const repeteOTitulo = capitulo && capitulo.titulo.trim() === documento.titulo.trim();
+  $("leitorCapitulo").textContent = !capitulo || repeteOTitulo
+    ? `${documento.total.toLocaleString("pt-BR")} palavras`
+    : capitulo.sintetico
+      ? `Trecho ${capitulo.indice + 1} de ${documento.capitulos.length}`
+      : capitulo.titulo;
 
   // O contexto só aparece na pausa: durante a leitura ele competiria com a palavra.
   $("contexto").textContent = leitor.tocando
@@ -878,6 +886,16 @@ function ligarInterface() {
     leitor.irParaOInicio();
     fecharFolha("folhaCapitulos");
     atualizarMedidores();
+  });
+  $("marcarInicio").addEventListener("click", () => {
+    if (!livroAtual || !documento) { avisar("Abra um livro primeiro."); return; }
+    const registro = registroDoLivro(perfil, livroAtual);
+    registro.inicioManual = leitor.posicao;
+    leitor.definirInicioDoLivro(leitor.posicao);
+    salvarPerfil(perfil);
+    sincronizarEmSegundoPlano();
+    fecharFolha("folhaCapitulos");
+    avisar("Início do livro marcado nesta posição.");
   });
   $("botaoFrase").addEventListener("click", () => { leitor.voltarFrase(); atualizarMedidores(); });
   $("botaoCapitulo").addEventListener("click", () => { leitor.pularCapitulo(); atualizarMedidores(); });

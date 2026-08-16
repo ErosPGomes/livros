@@ -11,6 +11,9 @@ export const PPM_MAXIMO = 1200;
 /** Abaixo disso um trecho é capa, ficha ou nota — não é capítulo. */
 const PALAVRAS_DE_UM_CAPITULO = 120;
 
+/** Tamanho de um trecho inventado, quando o texto chega sem título nenhum. */
+const PALAVRAS_POR_TRECHO = 1400;
+
 /** Linha só com número ou algarismo romano: número de página que sobrou do PDF. */
 const NUMERO_DE_PAGINA = /^\s*(\d{1,4}|[ivxlcdm]{1,7}|[IVXLCDM]{1,7})\s*$/;
 
@@ -96,10 +99,46 @@ export function prepararTexto(titulo, conteudo) {
   return {
     titulo: (titulo || capitulos[0]?.titulo || "Sem título").trim(),
     palavras,
-    capitulos,
+    capitulos: garantirNavegacao(capitulos, palavras),
     total: palavras.length,
     ritmoMedio,
   };
+}
+
+/**
+ * PDF convertido costuma chegar sem nenhum título: vira um bloco único de dezenas de milhares de
+ * palavras, e aí não há como pular nem voltar. Quando isso acontece, o texto é dividido em trechos
+ * de tamanho parecido, sempre no começo de um parágrafo. O nome de cada um são as primeiras
+ * palavras dele — é inventado como divisão, mas honesto como rótulo: aponta para o texto real.
+ */
+function garantirNavegacao(capitulos, palavras) {
+  if (capitulos.length > 1 || palavras.length < PALAVRAS_POR_TRECHO * 2) return capitulos;
+
+  const trechos = [];
+  let inicio = 0;
+
+  for (let i = 0; i < palavras.length; i++) {
+    const passouDoTamanho = i - inicio >= PALAVRAS_POR_TRECHO;
+    if ((passouDoTamanho && palavras[i].fimDeParagrafo) || i === palavras.length - 1) {
+      const fim = i + 1;
+      trechos.push({
+        indice: trechos.length,
+        titulo: rotuloDoTrecho(palavras, inicio),
+        nivel: 2,
+        sintetico: true,
+        inicio,
+        palavras: fim - inicio,
+      });
+      inicio = fim;
+    }
+  }
+
+  return trechos.length > 1 ? trechos : capitulos;
+}
+
+function rotuloDoTrecho(palavras, inicio) {
+  const rotulo = palavras.slice(inicio, inicio + 7).map((p) => p.texto).join(" ");
+  return rotulo.length > 58 ? `${rotulo.slice(0, 58).trimEnd()}…` : `${rotulo}…`;
 }
 
 function adicionarParagrafo(destino, paragrafo, indiceCapitulo, ehTitulo) {
@@ -283,6 +322,21 @@ export function capituloAnterior(documento, posicao) {
  * Assis" em vez da primeira frase. Nada é apagado: só o ponto de partida muda, e apenas quando a
  * mobília é pequena perto do livro, para nunca pular conteúdo de verdade.
  */
+/**
+ * Frases que só existem em página de rosto, ficha catalográfica e aviso de editora. Elas são a
+ * evidência que autoriza pular: sem encontrar nenhuma, nada é pulado, porque um livro pode
+ * legitimamente começar com um parágrafo curto.
+ */
+const MARCAS_DE_MOBILIA = new RegExp(
+  [
+    "todos os direitos reservados", "direitos de edi", "isbn", "copyright", "©",
+    "dados internacionais de catalog", "cip-brasil", "sobre a obra", "sobre a equipe",
+    "dados de ", "respeite o autor", "edição digital", "ª edição", "tradução de",
+    "revisão técnica", "impresso no brasil", "título original", "all rights reserved",
+  ].join("|"),
+  "i",
+);
+
 export function inicioDoMiolo(documento) {
   const limite = Math.max(documento.total, 1) * 0.08;
   let destino = 0;
@@ -298,7 +352,57 @@ export function inicioDoMiolo(documento) {
     destino = proximo;
   }
 
-  return destino;
+  if (destino > 0) return destino;
+
+  // Sem títulos, dois sinais concorrem: o fim da ficha catalográfica (evidência de que a mobília
+  // acabou) e o começo de um capítulo (evidência de que o livro começou). Vale o mais adiantado
+  // dos dois — a mobília costuma continuar depois da ficha, com orelha e nota de edição.
+  return Math.max(depoisDaMobilia(documento, limite), aberturaDeCapitulo(documento, limite));
+}
+
+/** Parágrafo que começa como capítulo: "1 Gestação", "Capítulo 2", "Introdução", "Parte 1". */
+const ABERTURA = /^(\d{1,2}\s+\p{Lu}|cap[íi]tulo\b|parte\b|introdu[çc][ãa]o\b|pref[áa]cio\b|pr[óo]logo\b|apresenta[çc][ãa]o\b)/iu;
+
+function aberturaDeCapitulo(documento, limite) {
+  let inicio = 0;
+  let atual = [];
+
+  for (let i = 0; i < documento.palavras.length && i < limite; i++) {
+    atual.push(documento.palavras[i].texto);
+    if (!documento.palavras[i].fimDeParagrafo) continue;
+
+    // Só conta como abertura o parágrafo que emenda em prosa; um índice também começa com "1 ".
+    if (atual.length >= 25 && ABERTURA.test(atual.join(" "))) return inicio;
+
+    atual = [];
+    inicio = i + 1;
+  }
+
+  return 0;
+}
+
+/**
+ * Quando o texto chega sem título nenhum, a única pista de onde o livro começa são as frases de
+ * ficha catalográfica. O começo passa a ser logo depois do último parágrafo que traz uma delas.
+ */
+function depoisDaMobilia(documento, limite) {
+  let destino = 0;
+  let temMarca = false;
+  let atual = [];
+
+  for (let i = 0; i < documento.palavras.length && i < limite; i++) {
+    atual.push(documento.palavras[i].texto);
+    if (!documento.palavras[i].fimDeParagrafo) continue;
+
+    if (MARCAS_DE_MOBILIA.test(atual.join(" "))) {
+      temMarca = true;
+      destino = i + 1;
+    }
+
+    atual = [];
+  }
+
+  return temMarca ? destino : 0;
 }
 
 export function capituloEm(documento, posicao) {

@@ -61,7 +61,7 @@
         <span class="leitor__capitulo" id="leitorCapitulo"></span>
       </div>
       <button class="icone" id="capitulosDoLeitor" type="button" aria-label="Capítulos">☰</button>
-      <button class="icone" id="abrirAjustes" type="button" aria-label="Ajustes de leitura">≡</button>
+      <button class="icone" id="abrirAjustes" type="button" aria-label="Ajustes de leitura">⚙</button>
     </header>
 
     <div class="palco" id="palco" role="button" tabindex="0" aria-label="Toque para iniciar ou pausar">
@@ -337,7 +337,14 @@
       <h2>Capítulos</h2>
       <button class="icone" id="fecharCapitulos" type="button" aria-label="Fechar">×</button>
     </div>
-    <button class="botao botao--secundario" id="irParaInicioDoLivro" type="button">↺ Voltar ao início do livro</button>
+    <div class="linha-botoes">
+      <button class="botao botao--secundario" id="irParaInicioDoLivro" type="button">↺ Ir ao início</button>
+      <button class="botao botao--secundario" id="marcarInicio" type="button">Marcar início aqui</button>
+    </div>
+    <p class="ajuste__nota">
+      O app tenta pular capa e ficha catalográfica sozinho. Quando errar, pare na primeira frase de
+      verdade e use “Marcar início aqui”.
+    </p>
     <ol class="capitulos" id="listaCapitulos"></ol>
   </div>
 </div>
